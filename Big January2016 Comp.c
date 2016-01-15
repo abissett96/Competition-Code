@@ -31,11 +31,11 @@ const float SPEED[] = {1000, 2000};
 //Sample time in ms
 const int dt = 50;
 //Proportional Constant
-float K_P;
+float K_P = 1;
 //Integral Constant
-float K_I;
+float K_I = 0;
 //Derivative Constant
-float K_D;
+float K_D = 0;
 
 //Tank drive
 void tankDrive(int left, int right)
@@ -57,15 +57,16 @@ void intakeControl(int speed)
 	motor[intake] = speed;
 }
 
+//PID algorithm to control the launch wheel speed.
 task PIDLaunchControl()
 {
 	int select = 0;
 	float targetSpeed = 0,
+		motorSpeed = 0,
 		error = 0,
 		lastError = 0,
 		integral = 0,
-		derivative = 0,
-		pid = 0;
+		derivative = 0;
 
 	//All motors are controlled by the encoder.
 	slaveMotor(launch2, launch1);
@@ -82,18 +83,19 @@ task PIDLaunchControl()
 
 		//Set target speed for the motors.
 		targetSpeed = (SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
+		//Reads actual motor speed.
+		motorSpeed = getMotorVelocity(launch1);
 
-		//Calculate error
+		//Calculates error
 		lastError = error;
-		error = targetSpeed - getMotorVelocity(launch1);
+		error = targetSpeed - motorSpeed;
 
 		//Integrates and differentiates
-		integral += error * dt;
+		integral +=  error * dt;
 		derivative = (error - lastError) / dt;
 
-		//Motor speed aproaches target.
-		pid = K_P * error + K_I * integral + K_D * derivative;
-		motor[launch1] = (int)(pid);
+		//Calculated new motor speed.
+		motor[launch1] = (int)(K_P * error + K_I * integral + K_D * derivative);
 
 		wait1Msec(dt);
 	}
