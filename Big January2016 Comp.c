@@ -156,7 +156,7 @@ task usercontrol()
 	while (true)
 	{
 		motor[launch4] = motor[launch3] = motor[launch2] = motor[launch1] = 127 * vexRT[Btn6U];
-		strafeDrive(vexRT[Ch3], vexRT[Ch1], vexRT[Ch4]);
+		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ , vexRT[Ch4] /*Strafe*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
 	}
 }
