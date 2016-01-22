@@ -28,14 +28,16 @@ const float LAUNCH_RATIO = (86 * 86) / (36 * 12);
 const float SPEED[] = {1000, 2000};
 
 //Constants for PID conrol of launcher
-//Sample time in ms
-const int dt = 50;
+//Sample time in ms (20ms => 50Hz)
+const int DT = 20;
 //Proportional Constant
 float K_P = 1;
 //Integral Constant
-float K_I = 0;
+float K_I = 0.01;
 //Derivative Constant
-float K_D = 0;
+float K_D = 0.1;
+
+float speed = 0;
 
 //Tank drive
 void tankDrive(int left, int right)
@@ -60,7 +62,9 @@ void intakeControl(int speed)
 //PID algorithm to control the launch wheel speed.
 task PIDLaunchControl()
 {
-	int select = 0;
+	static int launchActivated = true;
+	int select = 0,
+		pid = 0;
 	float targetSpeed = 0,
 		motorSpeed = 0,
 		error = 0,
@@ -68,36 +72,46 @@ task PIDLaunchControl()
 		integral = 0,
 		derivative = 0;
 
-	//All motors are controlled by the encoder.
+	//All motors are controlled by the encoder on launch1.
 	slaveMotor(launch2, launch1);
 	slaveMotor(launch3, launch1);
 	slaveMotor(launch4, launch1);
 
 	while (true)
 	{
-		//Select speed setting.
-		if (vexRT[Btn8D])
-			select = 0;
-		else if (vexRT[Btn8R])
-			select = 1;
+		if (launchActivated)
+		{
+			//Select speed setting.
+			if (vexRT[Btn8D])
+				select = 0;
+			else if (vexRT[Btn8R])
+				select = 1;
 
-		//Set target speed for the motors.
-		targetSpeed = (SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
-		//Reads actual motor speed.
-		motorSpeed = getMotorVelocity(launch1);
+			//Set target speed for the motors.
+			targetSpeed = (SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
+			//Reads actual motor speed.
+			motorSpeed = getMotorVelocity(launch1);
 
-		//Calculates error
-		lastError = error;
-		error = targetSpeed - motorSpeed;
+			//Calculates error
+			lastError = error;
+			error = targetSpeed - motorSpeed;
 
-		//Integrates and differentiates
-		integral +=  error * dt;
-		derivative = (error - lastError) / dt;
+			//Integrates and differentiates
+			integral +=  error * DT;
+			derivative = (error - lastError) / DT;
 
-		//Calculated new motor speed.
-		motor[launch1] = (int)(K_P * error + K_I * integral + K_D * derivative);
+			//Calculated new motor speed.
+			pid = (int)(K_P * error + K_I * integral + K_D * derivative);
 
-		wait1Msec(dt);
+			if (pid > 127)
+				pid = 127;
+			else if (pid < 0)
+				pid = 0;
+
+			motor[launch1] = pid;
+
+			wait1Msec(DT);
+		}
 	}
 }
 
@@ -156,6 +170,7 @@ task usercontrol()
 	while (true)
 	{
 		motor[launch4] = motor[launch3] = motor[launch2] = motor[launch1] = 127 * vexRT[Btn6U];
+		speed = getMotorVelocity(launch1) * LAUNCH_RATIO;
 		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ , vexRT[Ch4] /*Strafe*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
 	}

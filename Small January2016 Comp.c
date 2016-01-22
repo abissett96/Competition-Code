@@ -19,6 +19,22 @@
 
 #include "Vex_Competition_Includes.c"   //Main competition background code...do not modify!
 
+//Gearbox on the launcher.
+const float LAUNCH_RATIO = (86 * 86) / (36 * 12);
+
+//Wheel speed in RPM.
+const float SPEED[] = {1000, 2000};
+
+//Constants for PID conrol of launcher
+//Sample time in ms (20ms => 50Hz)
+const int DT = 20;
+//Proportional Constant
+float K_P = 1;
+//Integral Constant
+float K_I = 0.01;
+//Derivative Constant
+float K_D = 0.1;
+
 void tankDrive(int left, int right)
 {
 	motor[BLD] = motor[FLD] = left;
@@ -30,9 +46,60 @@ void intake(int speed)
 	motor[intakeL] = motor[intakeR] = speed;
 }
 
+//PID algorithm to control the launch wheel speed.
 task PIDLaunchControl()
 {
+	static int launchActivated = true;
+	int select = 0,
+		pid = 0;
+	float targetSpeed = 0,
+		motorSpeed = 0,
+		error = 0,
+		lastError = 0,
+		integral = 0,
+		derivative = 0;
 
+	//All motors are controlled by the encoder on launch1.
+	slaveMotor(launch1, launch3);
+	slaveMotor(launch2, launch3);
+	slaveMotor(launch4, launch3);
+
+	while (true)
+	{
+		if (launchActivated)
+		{
+			//Select speed setting.
+			if (vexRT[Btn8D])
+				select = 0;
+			else if (vexRT[Btn8R])
+				select = 1;
+
+			//Set target speed for the motors.
+			targetSpeed = (SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
+			//Reads actual motor speed.
+			motorSpeed = getMotorVelocity(launch1);
+
+			//Calculates error
+			lastError = error;
+			error = targetSpeed - motorSpeed;
+
+			//Integrates and differentiates
+			integral +=  error * DT;
+			derivative = (error - lastError) / DT;
+
+			//Calculated new motor speed.
+			pid = (int)(K_P * error + K_I * integral + K_D * derivative);
+
+			if (pid > 127)
+				pid = 127;
+			else if (pid < 0)
+				pid = 0;
+
+			motor[launch1] = pid;
+
+			wait1Msec(DT);
+		}
+	}
 }
 
 void pre_auton()
