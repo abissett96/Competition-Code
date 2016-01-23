@@ -1,9 +1,11 @@
+#pragma config(I2C_Usage, I2C1, i2cSensors)
+#pragma config(Sensor, I2C_1,  ,               sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Motor,  port1,           BRD,           tmotorVex393HighSpeed_HBridge, openLoop, reversed)
 #pragma config(Motor,  port2,           BLD,           tmotorVex393HighSpeed_MC29, openLoop)
 #pragma config(Motor,  port3,           intakeL,       tmotorVex393HighSpeed_MC29, openLoop, reversed)
 #pragma config(Motor,  port4,           launch1,       tmotorVex393TurboSpeed_MC29, openLoop, reversed)
 #pragma config(Motor,  port5,           launch2,       tmotorVex393TurboSpeed_MC29, openLoop)
-#pragma config(Motor,  port6,           launch3,       tmotorVex393TurboSpeed_MC29, openLoop, reversed)
+#pragma config(Motor,  port6,           launch3,       tmotorVex393TurboSpeed_MC29, openLoop, reversed, encoderPort, I2C_1)
 #pragma config(Motor,  port7,           launch4,       tmotorVex393TurboSpeed_MC29, openLoop)
 #pragma config(Motor,  port8,           intakeR,       tmotorVex393HighSpeed_MC29, openLoop)
 #pragma config(Motor,  port9,           FLD,           tmotorVex393HighSpeed_MC29, openLoop)
@@ -20,10 +22,10 @@
 #include "Vex_Competition_Includes.c"   //Main competition background code...do not modify!
 
 //Gearbox on the launcher.
-const float LAUNCH_RATIO = (86 * 86) / (36 * 12);
+const float LAUNCH_RATIO = (60 / 36) * (84 / 12);
 
 //Wheel speed in RPM.
-const float SPEED[] = {1000, 2000};
+const float SPEED[] = {1000, 1600};
 
 //Constants for PID conrol of launcher
 //Sample time in ms (20ms => 50Hz)
@@ -35,10 +37,19 @@ float K_I = 0.01;
 //Derivative Constant
 float K_D = 0.1;
 
+//Used to measure motor speed in the debugger.
+float speedDebug = 0;
+
 void tankDrive(int left, int right)
 {
 	motor[BLD] = motor[FLD] = left;
 	motor[BRD] = motor[FRD] = right;
+}
+
+void fpsDrive(int forward, int turn)
+{
+	motor[BLD] = motor[FLD] = forward + turn;
+	motor[BRD] = motor[FRD] = forward - turn;
 }
 
 void intake(int speed)
@@ -123,7 +134,9 @@ task usercontrol()
 	while (true)
 	{
 		motor[launch1] = motor[launch2] = motor[launch3] = motor[launch4] = 127 * vexRT[Btn6U];
-		tankDrive(vexRT[Ch3] /*Left*/ , vexRT[Ch2] /*Right*/ );
+		speedDebug = getMotorVelocity(launch3) * LAUNCH_RATIO;
+
+		fpsDrive(vexRT[Ch3] /*Forward*/ , vexRT[Ch2] /*Turn*/ );
 		intake(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
 	}
 }

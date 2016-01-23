@@ -22,10 +22,10 @@
 #include "Vex_Competition_Includes.c"   //Main competition background code...do not modify!
 
 //Gearbox on the launcher.
-const float LAUNCH_RATIO = (86 * 86) / (36 * 12);
+const float LAUNCH_RATIO = (84 / 36) * (84 / 12);
 
 //Wheel speed in RPM.
-const float SPEED[] = {1000, 2000};
+const float SPEED[] = {1000, 2100};
 
 //Constants for PID conrol of launcher
 //Sample time in ms (20ms => 50Hz)
@@ -37,9 +37,9 @@ float K_I = 0.01;
 //Derivative Constant
 float K_D = 0.1;
 
-float speed = 0;
+//Used to measure motor speed in the debugger.
+float speedDebug = 0;
 
-//Tank drive
 void tankDrive(int left, int right)
 {
 	motor[BLD] = motor[FLD] = left;
@@ -170,8 +170,10 @@ task usercontrol()
 	while (true)
 	{
 		motor[launch4] = motor[launch3] = motor[launch2] = motor[launch1] = 127 * vexRT[Btn6U];
-		speed = getMotorVelocity(launch1) * LAUNCH_RATIO;
-		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ , vexRT[Ch4] /*Strafe*/ );
+		speedDebug = getMotorVelocity(launch1) * LAUNCH_RATIO;
+
+		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ ,
+			(abs(vexRT[Ch4]) > 40) ? vexRT[Ch4] : 0 /*Strafe with dead zone*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
 	}
 }
