@@ -27,15 +27,18 @@ const float LAUNCH_RATIO = (84 / 36) * (84 / 12);
 //Wheel speed in RPM.
 const float SPEED[] = {1000, 2100};
 
+//Offset for launch control.
+const int LAUNCH_OFFSET[] = {70, 100};
+
 //Constants for PID conrol of launcher
 //Sample time in ms (20ms => 50Hz)
 const int DT = 20;
 //Proportional Constant
-float K_P = 1;
+float K_P = 0.1;
 //Integral Constant
 float K_I = 0.01;
 //Derivative Constant
-float K_D = 0.1;
+float K_D = 0.05;
 
 //Used to measure motor speed in the debugger.
 float speedDebug = 0;
@@ -59,6 +62,11 @@ void intakeControl(int speed)
 	motor[intake] = speed;
 }
 
+void launch(int s)
+{
+	motor[launch1] = motor[launch2] = motor[launch3] = motor[launch4] = s;
+}
+
 //PID algorithm to control the launch wheel speed.
 task PIDLaunchControl()
 {
@@ -77,9 +85,12 @@ task PIDLaunchControl()
 	slaveMotor(launch3, launch1);
 	slaveMotor(launch4, launch1);
 
+	//Resets timer which controls refresh rate
+	clearTimer(T1);
+
 	while (true)
 	{
-		if (launchActivated)
+		if (launchActivated && time1[T1] > DT)
 		{
 			//Select speed setting.
 			if (vexRT[Btn8D])
@@ -101,7 +112,7 @@ task PIDLaunchControl()
 			derivative = (error - lastError) / DT;
 
 			//Calculated new motor speed.
-			pid = (int)(K_P * error + K_I * integral + K_D * derivative);
+			pid = (int)(K_P * error + K_I * integral + K_D * derivative) + LAUNCH_OFFSET[select] * vexRT[Btn6U];
 
 			if (pid > 127)
 				pid = 127;
@@ -110,70 +121,149 @@ task PIDLaunchControl()
 
 			motor[launch1] = pid;
 
-			wait1Msec(DT);
+			clearTimer(T1);
 		}
 	}
 }
 
-/**************************
-This code causes the launch wheel velocity to oscillate
-
-task launchControl()
+task PLaunchControl()
 {
-	int targetSpeed = 0,
+	int select = 0,
+		control = 0;
+	float error = 0,
 		motorSpeed = 0,
-		select = 0;
+		targetSpeed = 0;
 
-	//All motors are controlled by the encoder.
+	//All motors are controlled by the encoder on launch1.
 	slaveMotor(launch2, launch1);
 	slaveMotor(launch3, launch1);
 	slaveMotor(launch4, launch1);
 
 	while (true)
 	{
-		//Select speed setting.
 		if (vexRT[Btn8D])
 			select = 0;
 		else if (vexRT[Btn8R])
 			select = 1;
 
 		//Set target speed for the motors.
-		targetSpeed = (int)(SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
+		targetSpeed = (SPEED[select] / LAUNCH_RATIO) * vexRT[Btn6U];
+		//Reads actual motor speed.
+		motorSpeed = getMotorVelocity(launch1);
 
-		//Motor speed aproaches target.
-		motorSpeed += sgn(targetSpeed - getMotorVelocity(launch1));
-		motor[launch1] = motorSpeed;
+		//Calculates error
+		error = targetSpeed - motorSpeed;
+
+		//Calculates new motor speed.
+		control = (int)(K_P * error) + LAUNCH_OFFSET[select] * vexRT[Btn6U];
+
+		if (control > 127)
+			control = 127;
+		else if (control < 0)
+			control = 0;
+
+		motor[launch1] = control;
+
+		wait1Msec(DT);
 	}
 }
-**************************/
 
+task ManualLaunchControl()
+{
+	bool btnPressed = false;
+	int launchSpeed = 85;
 
+	//All motors are controlled by the encoder on launch1.
+	slaveMotor(launch2, launch1);
+	slaveMotor(launch3, launch1);
+	slaveMotor(launch4, launch1);
+
+	while (true)
+	{
+		//Checks for button presses.
+		if (btnPressed && !vexRT[Btn8R] && !vexRT[Btn8D])
+			btnPressed = false;
+		else if (!btnPressed && vexRT[Btn8R])
+		{
+			launchSpeed += 5;
+			btnPressed = true;
+		}
+		else if (!btnPressed && vexRT[Btn8D])
+		{
+			launchSpeed -= 5;
+			btnPressed = true;
+		}
+
+		//Corrects invalid values for motor speeds.
+		if (launchSpeed > 127)
+			launchSpeed = 127;
+		else if (launchSpeed < 0)
+			launchSpeed = 0;
+
+		//Default settings for motor speeds.
+		if (vexRT[Btn7L])
+			launchSpeed = 85;
+		else if (vexRT[Btn7D])
+			launchSpeed = 70;
+
+		motor[launch1] = launchSpeed * vexRT[Btn6U];
+	}
+}
 
 void pre_auton()
 {
   bStopTasksBetweenModes = true;
+
+  //All motors are controlled by the encoder on launch1.
+	slaveMotor(launch2, launch1);
+	slaveMotor(launch3, launch1);
+	slaveMotor(launch4, launch1);
 }
 
 
 
 task autonomous()
 {
-	AutonomousCodePlaceholderForTesting();  // Remove this function call once you have "real" code.
+	motor[launch1] = 85;	//Activates launcher.
+
+	wait1Msec(5000);			//Waits for speed up.
+	intakeControl(127);		//Activates conveyor belt.
+	wait1Msec(500);				//Waits for balls to launch.
+	intakeControl(0);			//Deactivates conveyor belt.
+
+	wait1Msec(3000);
+	intakeControl(127);
+	wait1Msec(500);
+	intakeControl(0);
+
+	wait1Msec(3000);
+	intakeControl(127);
+	wait1Msec(500);
+	intakeControl(0);
+
+	wait1Msec(3000);
+	intakeControl(127);
+	wait1Msec(500);
+	intakeControl(0);
+
+	motor[launch1] = 0;		//Deactivates launcher.
 }
 
 
 
 task usercontrol()
 {
-	//startTask(PIDLaunchControl);
+	startTask(PIDLaunchControl);
+	//startTask(PLaunchControl);
+	//startTask(ManualLaunchControl);
 
 	while (true)
 	{
-		motor[launch4] = motor[launch3] = motor[launch2] = motor[launch1] = 127 * vexRT[Btn6U];
+		//Reads speed of the launch wheel.
 		speedDebug = getMotorVelocity(launch1) * LAUNCH_RATIO;
 
 		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ ,
-			(abs(vexRT[Ch4]) > 40) ? vexRT[Ch4] : 0 /*Strafe with dead zone*/ );
+			(abs(vexRT[Ch4]) > 60) ? vexRT[Ch4] : 0 /*Strafe with dead zone*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
 	}
 }
