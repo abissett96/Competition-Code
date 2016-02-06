@@ -25,10 +25,10 @@
 const float LAUNCH_RATIO = (84 / 36) * (84 / 12);
 
 //Wheel speed in RPM.
-const float SPEED[] = {1000, 2100};
+const float SPEED[] = {1100, 2200};
 
 //Offset for launch control.
-const int LAUNCH_OFFSET[] = {70, 100};
+const int LAUNCH_OFFSET[] = {70, 110};
 
 //Constants for PID conrol of launcher
 //Sample time in ms (20ms => 50Hz)
@@ -36,7 +36,7 @@ const int DT = 20;
 //Proportional Constant
 float K_P = 0.1;
 //Integral Constant
-float K_I = 0.01;
+float K_I = 0.005;
 //Derivative Constant
 float K_D = 0.05;
 
@@ -253,7 +253,7 @@ task autonomous()
 
 task usercontrol()
 {
-	startTask(PIDLaunchControl);
+	//startTask(PIDLaunchControl);
 	//startTask(PLaunchControl);
 	//startTask(ManualLaunchControl);
 
@@ -262,6 +262,7 @@ task usercontrol()
 		//Reads speed of the launch wheel.
 		speedDebug = getMotorVelocity(launch1) * LAUNCH_RATIO;
 
+		motor[launch1] = motor[launch2] = motor[launch3] = motor[launch4] = 127 * vexRT[Btn6U];
 		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ ,
 			(abs(vexRT[Ch4]) > 60) ? vexRT[Ch4] : 0 /*Strafe with dead zone*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));
