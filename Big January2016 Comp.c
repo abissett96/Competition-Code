@@ -25,7 +25,7 @@
 const float LAUNCH_RATIO = (84 / 36) * (84 / 12);
 
 //Wheel speed in RPM.
-const float SPEED[] = {1100, 2200};
+const float SPEED[] = {1100, 2100};
 
 //Offset for launch control.
 const int LAUNCH_OFFSET[] = {70, 110};
@@ -155,11 +155,11 @@ task PLaunchControl()
 		error = targetSpeed - motorSpeed;
 
 		//Calculates new motor speed.
-		control = (int)(K_P * error) + LAUNCH_OFFSET[select] * vexRT[Btn6U];
+		control += (int)(K_P * error) + LAUNCH_OFFSET[select] * vexRT[Btn6U];
 
 		if (control > 127)
 			control = 127;
-		else if (control < 0)
+		else (control < 0)
 			control = 0;
 
 		motor[launch1] = control;
@@ -262,7 +262,8 @@ task usercontrol()
 		//Reads speed of the launch wheel.
 		speedDebug = getMotorVelocity(launch1) * LAUNCH_RATIO;
 
-		motor[launch1] = motor[launch2] = motor[launch3] = motor[launch4] = 127 * vexRT[Btn6U];
+		launch(127 * vexRT[Btn6U]);
+
 		strafeDrive(vexRT[Ch3] /*Speed*/ , vexRT[Ch1] /*Turn*/ ,
 			(abs(vexRT[Ch4]) > 60) ? vexRT[Ch4] : 0 /*Strafe with dead zone*/ );
 		intakeControl(127 * (vexRT[Btn5U] - vexRT[Btn5D]));

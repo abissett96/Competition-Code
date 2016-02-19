@@ -25,10 +25,10 @@
 const float LAUNCH_RATIO = (60 / 36) * (84 / 12);
 
 //Wheel speed in RPM.
-const float SPEED[] = {1000, 1600};
+const float SPEED[] = {1000, 1700};
 
 //Offset for launch control
-const int LAUNCH_OFFSET[] = {70, 100};
+const int LAUNCH_OFFSET[] = {70, 110};
 
 //Constants for PID conrol of launcher
 //Sample time in ms (20ms => 50Hz)
